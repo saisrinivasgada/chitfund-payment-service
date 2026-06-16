@@ -137,6 +137,27 @@ public class ChitMonthCycleService {
         return buildSummary(cycle, waivedRecords);
     }
 
+    @Transactional
+    public CycleSummaryResponse closeMonth(UUID cycleId, UUID adminId) {
+        ChitMonthCycle cycle = cycleRepository.findById(cycleId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND,
+                        "Cycle not found: " + cycleId));
+
+        if (cycle.getStatus() != CycleStatus.OPEN) {
+            throw new BusinessException(ErrorCode.INVALID_STATUS_TRANSITION,
+                    "Only OPEN months can be closed. Current status: " + cycle.getStatus());
+        }
+
+        cycle.setStatus(CycleStatus.CLOSED);
+        cycle.setClosedAt(LocalDateTime.now());
+        cycle.setClosedBy(adminId);
+        cycleRepository.save(cycle);
+
+        log.info("Admin {} closed month {} for chit {}", adminId, cycle.getMonthNumber(), cycle.getChitId());
+
+        return buildSummaryWithLiveStats(cycle);
+    }
+
     @Transactional(readOnly = true)
     public List<CycleSummaryResponse> getDashboard() {
         List<ChitMonthCycle> openCycles = cycleRepository.findByStatusOrderByDueDateAsc(CycleStatus.OPEN);
@@ -187,6 +208,8 @@ public class ChitMonthCycleService {
                 .skipReason(cycle.getSkipReason())
                 .openedAt(cycle.getOpenedAt())
                 .openedBy(cycle.getOpenedBy())
+                .closedAt(cycle.getClosedAt())
+                .closedBy(cycle.getClosedBy())
                 .skippedAt(cycle.getSkippedAt())
                 .skippedBy(cycle.getSkippedBy())
                 .build();
@@ -214,6 +237,8 @@ public class ChitMonthCycleService {
                 .skipReason(cycle.getSkipReason())
                 .openedAt(cycle.getOpenedAt())
                 .openedBy(cycle.getOpenedBy())
+                .closedAt(cycle.getClosedAt())
+                .closedBy(cycle.getClosedBy())
                 .skippedAt(cycle.getSkippedAt())
                 .skippedBy(cycle.getSkippedBy())
                 .build();

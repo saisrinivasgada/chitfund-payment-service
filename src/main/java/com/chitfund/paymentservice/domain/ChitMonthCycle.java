@@ -45,6 +45,8 @@ public class ChitMonthCycle {
 
     private LocalDateTime openedAt;
     private UUID openedBy;
+    private LocalDateTime closedAt;
+    private UUID closedBy;
     private LocalDateTime skippedAt;
     private UUID skippedBy;
 

@@ -14,6 +14,7 @@ import com.chitfund.paymentservice.dto.request.CollectCashRequest;
 import com.chitfund.paymentservice.dto.request.RecordPaymentRequest;
 import com.chitfund.paymentservice.dto.response.MemberBalanceResponse;
 import com.chitfund.paymentservice.dto.response.PaymentBatchResponse;
+import com.chitfund.paymentservice.dto.response.PaymentRecordResponse;
 import com.chitfund.paymentservice.client.MemberServiceClient;
 import com.chitfund.paymentservice.kafka.PaymentEventPublisher;
 import com.chitfund.paymentservice.repository.PaymentAllocationRepository;
@@ -238,6 +239,31 @@ public class PaymentService {
                 .totalOutstanding(totalOutstanding)
                 .months(months)
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentRecordResponse> getPaymentHistory(UUID memberId, UUID chitId) {
+        List<PaymentRecord> records = paymentRecordRepository
+                .findByMemberIdAndChitIdOrderByMonthNumberAsc(memberId, chitId);
+        LocalDate today = LocalDate.now();
+        return records.stream()
+                .map(r -> PaymentRecordResponse.builder()
+                        .id(r.getId())
+                        .chitId(r.getChitId())
+                        .memberId(r.getMemberId())
+                        .monthNumber(r.getMonthNumber())
+                        .dueDate(r.getDueDate())
+                        .amountDue(r.getAmountDue())
+                        .amountPaid(r.getAmountPaid())
+                        .balance(r.getAmountDue().subtract(r.getAmountPaid()))
+                        .status(r.getStatus())
+                        .overdue((r.getStatus() == PaymentRecordStatus.OUTSTANDING
+                                || r.getStatus() == PaymentRecordStatus.PARTIALLY_PAID)
+                                && r.getDueDate().isBefore(today))
+                        .createdAt(r.getCreatedAt())
+                        .updatedAt(r.getUpdatedAt())
+                        .build())
+                .toList();
     }
 
     @Transactional(readOnly = true)

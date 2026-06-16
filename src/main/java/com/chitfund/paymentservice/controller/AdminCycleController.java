@@ -19,7 +19,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/admin/cycles")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasRole('ROLE_ADMIN')")
 public class AdminCycleController {
 
     private final ChitMonthCycleService cycleService;
@@ -61,7 +61,19 @@ public class AdminCycleController {
     }
 
     /**
-     * All cycles (open + skipped) for a specific chit — used for chit-level audit view.
+     * Admin closes an open month — marks collection period as over.
+     * Works even if some members are still OUTSTANDING (force-close).
+     */
+    @PostMapping("/{id}/close")
+    public ResponseEntity<ApiResponse<CycleSummaryResponse>> closeMonth(
+            @PathVariable UUID id,
+            Authentication auth) {
+        UUID adminId = (UUID) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.success(cycleService.closeMonth(id, adminId)));
+    }
+
+    /**
+     * All cycles (open + skipped + closed) for a specific chit — used for chit-level audit view.
      */
     @GetMapping("/chit/{chitId}")
     public ResponseEntity<ApiResponse<List<CycleSummaryResponse>>> getCyclesForChit(

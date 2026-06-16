@@ -5,6 +5,7 @@ import com.chitfund.paymentservice.dto.request.CollectCashRequest;
 import com.chitfund.paymentservice.dto.request.RecordPaymentRequest;
 import com.chitfund.paymentservice.dto.response.MemberBalanceResponse;
 import com.chitfund.paymentservice.dto.response.PaymentBatchResponse;
+import com.chitfund.paymentservice.dto.response.PaymentRecordResponse;
 import com.chitfund.paymentservice.service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,7 @@ public class PaymentController {
      * Admin must call /remit after receiving the cash from the worker.
      */
     @PostMapping("/collect")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_WORKER')")
+    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_WORKER')")
     public ResponseEntity<ApiResponse<PaymentBatchResponse>> collectCash(
             @Valid @RequestBody CollectCashRequest request,
             Authentication auth) {
@@ -44,7 +45,7 @@ public class PaymentController {
      * FIFO is applied immediately — payment_records updated in the same transaction.
      */
     @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<PaymentBatchResponse>> recordPayment(
             @Valid @RequestBody RecordPaymentRequest request,
             Authentication auth) {
@@ -58,7 +59,7 @@ public class PaymentController {
      * FIFO is applied here — this is when the member's payment is officially credited.
      */
     @PostMapping("/{batchId}/remit")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<PaymentBatchResponse>> remitCash(
             @PathVariable UUID batchId,
             Authentication auth) {
@@ -71,7 +72,7 @@ public class PaymentController {
      * All AWAITING_REMITTANCE batches — admin sees which workers still hold cash.
      */
     @GetMapping("/pending-remittance")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ApiResponse<List<PaymentBatchResponse>>> getPendingRemittances() {
         return ResponseEntity.ok(ApiResponse.success(paymentService.getPendingRemittances()));
     }
@@ -81,10 +82,22 @@ public class PaymentController {
      * Response: { totalOutstanding: ₹6000, months: [{month:2, balance:₹1000}, {month:3, balance:₹5000}] }
      */
     @GetMapping("/balance")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_WORKER')")
+    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_WORKER')")
     public ResponseEntity<ApiResponse<MemberBalanceResponse>> getMemberBalance(
             @RequestParam UUID memberId,
             @RequestParam UUID chitId) {
         return ResponseEntity.ok(ApiResponse.success(paymentService.getMemberBalance(memberId, chitId)));
+    }
+
+    /**
+     * Full payment history for a member in a chit — all months including SETTLED and WAIVED.
+     * Used in the member detail page to show a complete payment timeline.
+     */
+    @GetMapping("/history")
+    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_WORKER')")
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> getPaymentHistory(
+            @RequestParam UUID memberId,
+            @RequestParam UUID chitId) {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentHistory(memberId, chitId)));
     }
 }
